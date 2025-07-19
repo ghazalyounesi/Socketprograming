@@ -47,10 +47,13 @@ public class ClientConnectionHandler implements Runnable {
             // ۳. پاک‌سازی نهایی
             workspaceHandler.removeClient(this.client);
             try {
-                socket.close();
+                if (socket != null && !socket.isClosed()) {
+                    socket.close();
+                }
             } catch (IOException e) {
                 log.error("Error closing client socket.", e);
             }
+            log.info("Cleaned up resources for client '{}'.", (client != null ? client.getUsername() : "UNKNOWN"));
         }
     }
 
@@ -98,13 +101,45 @@ public class ClientConnectionHandler implements Runnable {
         String clientCommand;
         while ((clientCommand = reader.readLine()) != null) {
             log.debug("Received command from user '{}': {}", client.getUsername(), clientCommand);
-            if ("disconnect".equalsIgnoreCase(clientCommand.trim())) {
-                log.info("User '{}' requested to disconnect.", client.getUsername());
-                break; // از حلقه خارج می‌شویم
-            }
 
-            // TODO: در مرحله بعد، دستورات دیگر مثل send-message را اینجا پردازش می‌کنیم.
-            writer.println("ECHO: " + clientCommand);
+            String[] parts = clientCommand.split(" ", 3);
+            String commandType = parts[0].toLowerCase();
+
+            switch (commandType) {
+                case "disconnect":
+                    log.info("User '{}' requested to disconnect.", client.getUsername());
+                    return; // خروج از متد و بستن اتصال در بلوک finally
+
+                case "send-message":
+                    if (parts.length == 3) {
+                        String recipient = parts[1];
+                        String jsonMessage = parts[2];
+                        workspaceHandler.handleSendMessage(this.client, recipient, jsonMessage);
+                    } else {
+                        writer.println("ERROR: Invalid send-message format.");
+                    }
+                    break;
+                case "get-chats":
+                    // --- تغییر کلیدی ---
+                    // حالا چک می‌کنیم که دستور get-chats هیچ پارامتر اضافه‌ای نداشته باشد.
+                    if (parts.length == 1) {
+                        workspaceHandler.handleGetChats(this.client);
+                    } else {
+                        writer.println("ERROR: Invalid get-chats format. Use: get-chats");
+                    }
+                    break;
+
+                case "get-messages":
+                    if (parts.length == 2) {
+                        String otherUsername = parts[1];
+                        workspaceHandler.handleGetMessages(this.client, otherUsername);
+                    } else {
+                        writer.println("ERROR: Invalid get-messages format. Use: get-messages <username>");
+                    }
+                    break;
+                default:
+                    writer.println("ERROR: Unknown command.");
+            }
         }
     }
 }

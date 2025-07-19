@@ -1,0 +1,11 @@
+{
+  "runningWorkspaces": {
+    "9009": {
+      "port": 9009,
+      "creatorPhone": "test_user2",
+      "conversations": {},
+      "sequenceCounters": {},
+      "lastReadSequence": {}
+    }
+  }
+}

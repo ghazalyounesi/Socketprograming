@@ -11,10 +11,29 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import com.messaging.server.models.Host;
+import com.messaging.server.models.HostConnection;
+import com.messaging.server.models.Token;
+import com.messaging.server.models.User;
+import com.messaging.server.models.Workspace;
+
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.Reader;
+import java.io.Writer;
+import java.lang.reflect.Type;
+
 @Slf4j
 public class DataStore {
     private static final DataStore INSTANCE = new DataStore();
-
+    private static class PersistentState {
+        ConcurrentHashMap<String, User> users;
+        ConcurrentHashMap<String, Host> hosts;
+        ConcurrentHashMap<String, Workspace> workspaces;
+    }
     private final ConcurrentHashMap<String, User> users = new ConcurrentHashMap<>(); // Key: phoneNumber
     private final ConcurrentHashMap<String, Host> hosts = new ConcurrentHashMap<>(); // Key: hostId
     private final ConcurrentHashMap<String, Workspace> workspaces = new ConcurrentHashMap<>(); // Key: workspaceName
@@ -80,4 +99,56 @@ public class DataStore {
         if (token != null && !token.isExpired()) return Optional.of(token);
         return Optional.empty();
     }
+    public synchronized void saveStateToFile(String filePath) {
+        log.info("Attempting to save server state to {}...", filePath);
+        PersistentState state = new PersistentState();
+        state.users = this.users;
+        state.hosts = this.hosts;
+        state.workspaces = this.workspaces;
+
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+        try (Writer writer = new FileWriter(filePath)) {
+            gson.toJson(state, writer);
+            log.info("Server state successfully saved.");
+        } catch (IOException e) {
+            log.error("Failed to save server state to file.", e);
+        }
+    }
+    public synchronized void loadStateFromFile(String filePath) {
+        log.info("Attempting to load server state from {}...", filePath);
+        Gson gson = new Gson();
+        try (Reader reader = new FileReader(filePath)) {
+
+            PersistentState loadedState = gson.fromJson(reader, PersistentState.class);
+
+            if (loadedState != null) {
+                // --- تغییر کلیدی برای حل مشکل final ---
+                // به جای re-assign کردن، مپ فعلی را پاک کرده و داده‌های جدید را اضافه می‌کنیم.
+                if (loadedState.users != null) {
+                    this.users.clear();
+                    this.users.putAll(loadedState.users);
+                }
+                if (loadedState.hosts != null) {
+                    this.hosts.clear();
+                    this.hosts.putAll(loadedState.hosts);
+                }
+                if (loadedState.workspaces != null) {
+                    this.workspaces.clear();
+                    this.workspaces.putAll(loadedState.workspaces);
+                }
+
+                log.info("Server state successfully loaded. Found {} users, {} hosts, {} workspaces.",
+                        this.users.size(), this.hosts.size(), this.workspaces.size());
+            } else {
+                log.warn("Data file was empty or corrupted. Starting with a fresh state.");
+            }
+
+        } catch (IOException e) {
+            log.warn("No existing data file found at '{}'. Starting with a fresh state.", filePath);
+        } catch (Exception e) {
+            log.error("Failed to load or parse server state from file. Starting with a fresh state.", e);
+        }
+    }
+
 }
