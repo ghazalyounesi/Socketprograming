@@ -1,5 +1,9 @@
 {
   "users": {
+    "user1": {
+      "phoneNumber": "user1",
+      "password": "pass1"
+    },
     "test_user": {
       "phoneNumber": "test_user",
       "password": "test_pass"
@@ -15,7 +19,9 @@
       "address": "127.0.0.1",
       "startPort": 9000,
       "endPort": 9010,
-      "usedPorts": []
+      "usedPorts": [
+        9007
+      ]
     }
   },
   "workspaces": {
@@ -33,6 +39,20 @@
       "port": 9002,
       "creatorPhoneNumber": "test_user"
     },
+    "another_company": {
+      "name": "another_company",
+      "host": {
+        "id": "127.0.0.1:9000",
+        "address": "127.0.0.1",
+        "startPort": 9000,
+        "endPort": 9010,
+        "usedPorts": [
+          9007
+        ]
+      },
+      "port": 9007,
+      "creatorPhoneNumber": "user1"
+    },
     "test_workspace2": {
       "name": "test_workspace2",
       "host": {
@@ -46,6 +66,21 @@
       },
       "port": 9009,
       "creatorPhoneNumber": "test_user2"
+    },
+    "my_company": {
+      "name": "my_company",
+      "host": {
+        "id": "127.0.0.1:9000",
+        "address": "127.0.0.1",
+        "startPort": 9000,
+        "endPort": 9010,
+        "usedPorts": [
+          9008,
+          9000
+        ]
+      },
+      "port": 9008,
+      "creatorPhoneNumber": "user1"
     }
   }
 }

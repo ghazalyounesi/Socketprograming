@@ -29,7 +29,6 @@ public class WorkspaceHandler implements Runnable {
     private final ConcurrentHashMap<String, List<Message>> conversations;
     private final ConcurrentHashMap<String, AtomicInteger> sequenceCounters;
     private final ConcurrentHashMap<String, Integer> lastReadSequence;
-    // --- این فیلدها به درستی در این کلاس قرار دارند ---
     private final ConcurrentHashMap<String, ConnectedClient> connectedClientsByUsername = new ConcurrentHashMap<>();
 
     public WorkspaceHandler(int port, String creatorPhone, CentralServerConnector serverConnector) {
@@ -46,7 +45,6 @@ public class WorkspaceHandler implements Runnable {
         this.creatorPhone = state.getCreatorPhone();
         this.serverConnector = serverConnector;
         this.clientThreadPool = Executors.newCachedThreadPool();
-        // بارگذاری داده‌های قبلی
         this.conversations = state.getConversations();
         this.sequenceCounters = state.getSequenceCounters();
         this.lastReadSequence = state.getLastReadSequence();
@@ -102,9 +100,6 @@ public class WorkspaceHandler implements Runnable {
         }
     }
 
-    /**
-     * (این متد به درستی در این کلاس قرار دارد) - منطق اصلی برای پردازش دستور send-message.
-     */
     public synchronized void handleSendMessage(ConnectedClient sender, String recipientUsername, String messageJson) {
         ConnectedClient recipient = connectedClientsByUsername.get(recipientUsername);
         String conversationId = createConversationId(sender.getUsername(), recipientUsername);
@@ -118,8 +113,6 @@ public class WorkspaceHandler implements Runnable {
             conversations.putIfAbsent(conversationId, Collections.synchronizedList(new ArrayList<>()));
             conversations.get(conversationId).add(message);
 
-            // --- تغییر کلیدی ---
-            // فرستنده پیام، همیشه آخرین پیام گفتگوی خودش را "خوانده" است.
             String senderLastReadKey = sender.getUsername() + "-" + conversationId;
             lastReadSequence.put(senderLastReadKey, seq);
 
@@ -163,8 +156,7 @@ public class WorkspaceHandler implements Runnable {
                 JSONObject chatInfo = new JSONObject();
                 chatInfo.put("name", otherUsername);
                 chatInfo.put("unread_count", unreadCount);
-                // --- تغییر کلیدی ---
-                chatInfo.put("total_messages", totalMessages); // اضافه کردن تعداد کل پیام‌ها
+                chatInfo.put("total_messages", totalMessages);
 
                 chatsArray.put(chatInfo);
             }
@@ -178,20 +170,16 @@ public void handleGetMessages(ConnectedClient requester, String otherUsername) {
 
     JSONArray messagesArray = new JSONArray();
     if (messages != null && !messages.isEmpty()) {
-        // تمام پیام‌های گفتگو را به آرایه JSON اضافه می‌کنیم
         for (Message msg : messages) {
             messagesArray.put(new JSONObject(msg.toJsonString()));
         }
 
-        // --- تغییر کلیدی ---
-        // گفتگو را به عنوان "خوانده شده" علامت می‌زنیم
         int lastSeqInChat = messages.get(messages.size() - 1).getSeq();
         String lastReadKey = requester.getUsername() + "-" + conversationId;
         lastReadSequence.put(lastReadKey, lastSeqInChat);
         log.debug("Marked conversation '{}' as read for user '{}' up to seq {}.", conversationId, requester.getUsername(), lastSeqInChat);
     }
 
-    // ارسال لیست پیام‌ها به کلاینت
     requester.getWriter().println("OK " + messagesArray.toString());
     log.debug("Sent message history for chat with '{}' to user '{}'", otherUsername, requester.getUsername());
 }

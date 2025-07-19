@@ -12,9 +12,6 @@ public class Message {
     private final String type;
     private final String body;
 
-    /**
-     * این متد یک نمایش JSON از پیام برای ارسال به کلاینت‌ها می‌سازد.
-     */
     public String toJsonString() {
         JSONObject json = new JSONObject();
         json.put("seq", this.seq);

@@ -37,16 +37,15 @@ public class CentralServerConnector implements Runnable {
     @Override
     public void run() {
         try {
-            // ۱. برقراری اتصال با سرور مرکزی
+
             centralServerSocket = new Socket(centralServerIp, centralServerPort);
             writer = new PrintWriter(centralServerSocket.getOutputStream(), true);
             reader = new BufferedReader(new InputStreamReader(centralServerSocket.getInputStream()));
             log.info("Successfully connected to Central Server at {}:{}", centralServerIp, centralServerPort);
 
-            // ۲. شروع فرآیند ثبت‌نام (Handshake)
             if (performHandshake()) {
                 log.info("Host successfully registered with the Central Server.");
-                // ۳. گوش دادن دائمی برای دریافت دستورات از سرور مرکزی
+
                 listenForCommands();
             } else {
                 log.error("Handshake with Central Server failed. Shutting down.");
@@ -60,12 +59,11 @@ public class CentralServerConnector implements Runnable {
     }
 
     private boolean performHandshake() throws IOException {
-        // مرحله ۱: ارسال دستور create-host
+
         String createHostCommand = String.format("create-host %s %d %d", hostIp, hostStartPort, hostEndPort);
         log.debug("Sending command to server: {}", createHostCommand);
         writer.println(createHostCommand);
 
-        // مرحله ۲: دریافت پورت تصادفی از سرور
         String serverResponse = reader.readLine();
         log.debug("Received from server: {}", serverResponse);
         String[] parts = serverResponse.split(" ");
@@ -76,22 +74,20 @@ public class CentralServerConnector implements Runnable {
         int randomPort = Integer.parseInt(parts[1]);
         log.info("Server asked to listen on temporary port: {}", randomPort);
 
-        // مرحله ۳: گوش دادن روی پورت تصادفی و اطلاع به سرور
+
         try (ServerSocket tempSocket = new ServerSocket(randomPort)) {
             writer.println("check");
             log.debug("Sent 'check' to server. Waiting for connection on port {}", randomPort);
 
-            // مرحله ۴: منتظر ماندن برای اتصال سرور و دریافت کد ۱۰ رقمی
             try (Socket verificationConnection = tempSocket.accept()) {
                 BufferedReader verificationReader = new BufferedReader(new InputStreamReader(verificationConnection.getInputStream()));
                 String verificationCode = verificationReader.readLine();
                 log.info("Received verification code: {}", verificationCode);
 
-                // مرحله ۵: ارسال کد به سرور روی اتصال اصلی
+
                 writer.println(verificationCode);
                 log.debug("Sent verification code back to server.");
 
-                // مرحله ۶: دریافت تاییدیه نهایی
                 String finalResponse = reader.readLine();
                 log.debug("Final response from server: {}", finalResponse);
                 return finalResponse.equals("OK");
@@ -114,9 +110,8 @@ public class CentralServerConnector implements Runnable {
                         int port = Integer.parseInt(parts[1]);
                         String creatorPhone = parts[2];
 
-                        // دستور را به مدیر فضاهای کاری می‌دهیم
                         boolean success = workspaceManager.createAndStartWorkspace(port, creatorPhone, this);
-                        // نتیجه را به سرور مرکزی اطلاع می‌دهیم
+
                         if (success) {
                             writer.println("OK");
                             log.info("Successfully created workspace on port {} and sent OK to server.", port);
@@ -140,7 +135,7 @@ public class CentralServerConnector implements Runnable {
 
     public String verifyTokenAndGetUserPhone(String token) {
         log.debug("Opening a new temporary connection to verify token: {}", token);
-        // یک اتصال جدید و موقت به سرور مرکزی باز می‌کنیم
+
         try (Socket tempSocket = new Socket(centralServerIp, centralServerPort)) {
             PrintWriter tempWriter = new PrintWriter(tempSocket.getOutputStream(), true);
             BufferedReader tempReader = new BufferedReader(new InputStreamReader(tempSocket.getInputStream()));
@@ -155,13 +150,13 @@ public class CentralServerConnector implements Runnable {
             if (response != null && response.startsWith("OK")) {
                 String[] parts = response.split(" ");
                 if (parts.length == 2) {
-                    return parts[1]; // برگرداندن شماره تلفن
+                    return parts[1];
                 }
             }
         } catch (IOException e) {
             log.error("Failed to communicate with central server for token verification.", e);
         }
-        return null; // در صورت بروز هرگونه خطا
+        return null;
     }
 
 

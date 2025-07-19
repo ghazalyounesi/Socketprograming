@@ -25,11 +25,6 @@ public class WorkspaceManager {
         log.info("Workspace Manager initialized.");
     }
 
-    /**
-     * یک فضای کار جدید را در یک Thread مجزا ایجاد و اجرا می‌کند.
-     * @param serverConnector یک مرجع به کانکتور اصلی برای استفاده‌های بعدی (مثل whois)
-     * @return true اگر فضای کار با موفقیت اجرا شود، در غیر این صورت false.
-     */
     public boolean createAndStartWorkspace(int port, String creatorPhone, CentralServerConnector serverConnector) {
         if (runningWorkspaces.containsKey(port)) {
             log.warn("Attempted to create a workspace on an already used port: {}", port);
@@ -41,7 +36,6 @@ public class WorkspaceManager {
         CompletableFuture<Boolean> startupResult = new CompletableFuture<>();
         startupNotifiers.put(port, startupResult);
 
-        // ما serverConnector را به WorkspaceHandler پاس می‌دهیم.
         WorkspaceHandler workspaceHandler = new WorkspaceHandler(port, creatorPhone, serverConnector);
         Thread workspaceThread = new Thread(workspaceHandler);
         workspaceThread.setName("Workspace-Port-" + port);
@@ -49,7 +43,6 @@ public class WorkspaceManager {
 
         runningWorkspaces.put(port, workspaceHandler);
         try {
-            // منتظر می‌مانیم تا WorkspaceHandler به ما خبر دهد (حداکثر ۵ ثانیه)
             return startupResult.get(5, TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("Workspace on port {} failed to start in time or was interrupted.", port, e);

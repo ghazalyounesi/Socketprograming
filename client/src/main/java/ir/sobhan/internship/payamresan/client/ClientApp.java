@@ -8,19 +8,20 @@ public class ClientApp {
 
     public static void main(String[] args) {
         log.info("Client Application Started.");
-        log.info("Available commands: register, create-workspace, connect-workspace, disconnect, exit");
+        log.info("Available commands: register, login, logout, create-workspace, connect-workspace, send-message, get-chats, get-messages, disconnect, exit");
 
-        // آدرس سرور مرکزی را اینجا مشخص می‌کنیم
         String centralServerIp = "127.0.0.1";
         int centralServerPort = 8000;
 
         ConnectionManager connectionManager = new ConnectionManager(centralServerIp, centralServerPort);
         Scanner scanner = new Scanner(System.in);
 
-        // حلقه اصلی برای دریافت دستورات از کاربر
         while (true) {
             System.out.print("> ");
             String commandLine = scanner.nextLine();
+            if (commandLine.trim().isEmpty()) {
+                continue;
+            }
             String[] parts = commandLine.split(" ", 2);
             String command = parts[0].toLowerCase();
 
@@ -32,8 +33,14 @@ public class ClientApp {
 
             switch (command) {
                 case "register":
+                    connectionManager.register(commandLine);
+                case "login":
+                    connectionManager.login(commandLine);
+                    break;
+                case "logout":
+                    connectionManager.logout();
                 case "create-workspace":
-                    connectionManager.register(commandLine); // هر دو از یک نوع اتصال استفاده می‌کنند
+                    connectionManager.createWorkspace(commandLine);
                     break;
                 case "connect-workspace":
                     connectionManager.connectToWorkspace(commandLine);
@@ -47,7 +54,6 @@ public class ClientApp {
                 case "get-chats":
                     connectionManager.sendCommandToWorkspace(commandLine);
                     break;
-                    // TODO: دستورات چت در اینجا اضافه خواهند شد
                 case "get-messages":
                     connectionManager.sendCommandToWorkspace(commandLine);
                     break;

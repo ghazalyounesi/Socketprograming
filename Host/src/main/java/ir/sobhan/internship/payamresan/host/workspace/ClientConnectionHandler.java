@@ -32,19 +32,17 @@ public class ClientConnectionHandler implements Runnable {
             writer = new PrintWriter(socket.getOutputStream(), true);
             reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-            // ۱. انجام فرآیند اتصال و تایید هویت
             if (!handleClientConnection()) {
-                // اگر اتصال ناموفق بود، از متد خارج شده و Thread تمام می‌شود.
+
                 return;
             }
 
-            // ۲. گوش دادن به دستورات بعدی کلاینت (مثل send-message)
             listenForClientCommands();
 
         } catch (IOException e) {
             log.warn("Connection with client lost: {}", e.getMessage());
         } finally {
-            // ۳. پاک‌سازی نهایی
+
             workspaceHandler.removeClient(this.client);
             try {
                 if (socket != null && !socket.isClosed()) {
@@ -58,14 +56,13 @@ public class ClientConnectionHandler implements Runnable {
     }
 
     private boolean handleClientConnection() throws IOException {
-        // مرحله ۱: خواندن دستور connect <token>
+
         String connectCommand = reader.readLine();
         if (connectCommand == null || !connectCommand.toLowerCase().startsWith("connect ")) {
             writer.println("ERROR Invalid initial command. Expected 'connect <token>'.");
             return false;
         }
 
-        // مرحله ۲: اعتبارسنجی توکن
         String token = connectCommand.split(" ")[1];
         String phoneNumber = serverConnector.verifyTokenAndGetUserPhone(token);
 
@@ -74,7 +71,6 @@ public class ClientConnectionHandler implements Runnable {
             return false;
         }
 
-        // مرحله ۳: درخواست نام کاربری
         writer.println("username?");
         String username = reader.readLine();
 
@@ -83,7 +79,6 @@ public class ClientConnectionHandler implements Runnable {
             return false;
         }
 
-        // مرحله ۴: ثبت نهایی کلاینت در فضای کار
         this.client = new ConnectedClient(phoneNumber, socket, writer);
         this.client.setUsername(username);
 
@@ -92,7 +87,6 @@ public class ClientConnectionHandler implements Runnable {
             return false;
         }
 
-        // مرحله ۵: ارسال تاییدیه نهایی به کلاینت
         writer.println("OK");
         return true;
     }
@@ -108,7 +102,7 @@ public class ClientConnectionHandler implements Runnable {
             switch (commandType) {
                 case "disconnect":
                     log.info("User '{}' requested to disconnect.", client.getUsername());
-                    return; // خروج از متد و بستن اتصال در بلوک finally
+                    return;
 
                 case "send-message":
                     if (parts.length == 3) {
@@ -120,8 +114,6 @@ public class ClientConnectionHandler implements Runnable {
                     }
                     break;
                 case "get-chats":
-                    // --- تغییر کلیدی ---
-                    // حالا چک می‌کنیم که دستور get-chats هیچ پارامتر اضافه‌ای نداشته باشد.
                     if (parts.length == 1) {
                         workspaceHandler.handleGetChats(this.client);
                     } else {

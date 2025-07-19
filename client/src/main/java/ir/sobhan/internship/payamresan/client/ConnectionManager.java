@@ -12,8 +12,8 @@ public class ConnectionManager {
 
     private final String centralServerIp;
     private final int centralServerPort;
-
-    // اطلاعات اتصال دائمی به فضای کار
+    private String loggedInUserPhone;
+    private String loggedInUserPassword;
     private Socket workspaceSocket;
     private PrintWriter workspaceWriter;
     private BufferedReader workspaceReader;
@@ -23,11 +23,10 @@ public class ConnectionManager {
         this.centralServerIp = centralServerIp;
         this.centralServerPort = centralServerPort;
     }
+    public boolean isLoggedIn() {
+        return loggedInUserPhone != null && loggedInUserPassword != null;
+    }
 
-    /**
-     * یک دستور را به سرور مرکزی ارسال کرده و پاسخ را برمی‌گرداند.
-     * این متد برای اتصالات کوتاه‌مدت استفاده می‌شود.
-     */
     private String sendCommandToCentralServer(String command) {
         try (Socket socket = new Socket(centralServerIp, centralServerPort);
              PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
@@ -49,79 +48,75 @@ public class ConnectionManager {
         String response = sendCommandToCentralServer(command);
         System.out.println(response);
     }
+    public void login(String command) {
+        if (isLoggedIn()) {
+            System.out.println("ERROR: You are already logged in as " + loggedInUserPhone);
+            return;
+        }
+        String[] parts = command.split(" ");
+        if (parts.length != 3) {
+            System.out.println("ERROR: Invalid format. Use: login <phone> <password>");
+            return;
+        }
 
-    public void createWorkspace(String command) {
         String response = sendCommandToCentralServer(command);
+        System.out.println(response);
+
+        if (response != null && response.equalsIgnoreCase("OK")) {
+            this.loggedInUserPhone = parts[1];
+            this.loggedInUserPassword = parts[2];
+            log.info("User {} successfully logged in.", loggedInUserPhone);
+        }
+    }
+
+    public void logout() {
+        if (!isLoggedIn()) {
+            System.out.println("ERROR: You are not logged in.");
+            return;
+        }
+        disconnect();
+        this.loggedInUserPhone = null;
+        this.loggedInUserPassword = null;
+        System.out.println("Successfully logged out.");
+    }
+    public void createWorkspace(String command) {
+        if (!isLoggedIn()) {
+            System.out.println("ERROR: Please log in first.");
+            return;
+        }
+        String[] parts = command.split(" ");
+        if (parts.length != 2) {
+            System.out.println("ERROR: Invalid format. Use: create-workspace <workspace_name>");
+            return;
+        }
+        String workspaceName = parts[1];
+        String fullCommand = String.format("create-workspace %s %s %s", loggedInUserPhone, loggedInUserPassword, workspaceName);
+
+        String response = sendCommandToCentralServer(fullCommand);
         System.out.println(response);
     }
 
+
     public void connectToWorkspace(String command) {
+        if (!isLoggedIn()) {
+            System.out.println("ERROR: Please log in first.");
+            return;
+        }
         if (workspaceSocket != null && !workspaceSocket.isClosed()) {
             System.out.println("ERROR: You are already connected to a workspace. Please disconnect first.");
             return;
         }
 
-        // ۱. ابتدا اطلاعات اتصال و توکن را از سرور مرکزی می‌گیریم
-        String response = sendCommandToCentralServer(command);
-        if (response == null || !response.startsWith("OK")) {
-            System.out.println(response);
+        String[] parts = command.split(" ");
+        if (parts.length != 2) {
+            System.out.println("ERROR: Invalid format. Use: connect-workspace <workspace_name>");
             return;
         }
+        String workspaceName = parts[1];
+        String fullCommand = String.format("connect-workspace %s %s %s", loggedInUserPhone, loggedInUserPassword, workspaceName);
 
-        // پاسخ باید فرمت: OK <ip> <port> <token> داشته باشد
-        String[] parts = response.split(" ");
-        if (parts.length != 4) {
-            System.out.println("ERROR: Invalid response from central server.");
-            return;
-        }
+        String response = sendCommandToCentralServer(fullCommand);
 
-        String wsIp = parts[1];
-        int wsPort = Integer.parseInt(parts[2]);
-        String token = parts[3];
-
-        try {
-            // ۲. حالا اتصال دائمی به فضای کار برقرار می‌کنیم
-            workspaceSocket = new Socket(wsIp, wsPort);
-            workspaceWriter = new PrintWriter(workspaceSocket.getOutputStream(), true);
-            workspaceReader = new BufferedReader(new InputStreamReader(workspaceSocket.getInputStream()));
-            log.info("Successfully connected to Workspace at {}:{}", wsIp, wsPort);
-
-            // ۳. خودمان را با توکن معرفی می‌کنیم
-            workspaceWriter.println("connect " + token);
-
-            // ۴. منتظر درخواست نام کاربری می‌مانیم
-            String serverPrompt = workspaceReader.readLine();
-            System.out.println(serverPrompt); // "username?"
-
-            if (serverPrompt == null || !serverPrompt.equalsIgnoreCase("username?")) {
-                System.out.println("ERROR: Unexpected response from workspace.");
-                disconnect();
-                return;
-            }
-
-            // ۵. نام کاربری را از کاربر می‌گیریم و ارسال می‌کنیم
-            System.out.print("Enter username: ");
-            String username = new BufferedReader(new InputStreamReader(System.in)).readLine();
-            workspaceWriter.println(username);
-
-            // ۶. منتظر تاییدیه نهایی (OK) می‌مانیم
-            String finalResponse = workspaceReader.readLine();
-            System.out.println(finalResponse);
-
-            if (finalResponse != null && finalResponse.equalsIgnoreCase("OK")) {
-                // ۷. اگر همه چیز موفق بود، Thread شنونده را راه‌اندازی می‌کنیم
-                listenerThread = new Thread(new ServerListener(workspaceReader));
-                listenerThread.setName("Server-Listener-Thread");
-                listenerThread.start();
-                log.info("Listener thread started. Ready to receive messages.");
-            } else {
-                disconnect();
-            }
-
-        } catch (IOException e) {
-            log.error("Failed to connect to workspace: {}", e.getMessage());
-            disconnect();
-        }
     }
 
     public void disconnect() {
@@ -130,7 +125,6 @@ public class ConnectionManager {
             return;
         }
         try {
-            // بستن سوکت باعث می‌شود که listenerThread هم به صورت خودکار تمام شود
             workspaceSocket.close();
         } catch (IOException e) {
             log.error("Error while closing socket: {}", e.getMessage());

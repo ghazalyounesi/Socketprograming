@@ -9,7 +9,7 @@ public class ConnectedClient {
     private final String phoneNumber;
     private final Socket socket;
     private final PrintWriter writer;
-    private String username; // این در زمان اتصال کلاینت مشخص می‌شود
+    private String username;
 
     public ConnectedClient(String phoneNumber, Socket socket, PrintWriter writer) {
         this.phoneNumber = phoneNumber;
