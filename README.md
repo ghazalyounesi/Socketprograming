@@ -1,130 +1,97 @@
-Payamresan: A Distributed Java Socket-Based Messaging System
-📖 Introduction
-Payamresan (Persian for "Messenger") is a robust, multi-component messaging application built entirely from scratch using Java Sockets. It features a distributed architecture designed for scalability, separating coordination, execution, and user interaction into distinct, independent applications.
+# Payamresan  
+*A Distributed Java Socket-Based Messaging System*
 
-This project demonstrates core concepts of network programming, multithreading, and system design in Java, providing a practical example of how a distributed messaging service can be architected.
+---
 
-✨ Features
-Distributed Architecture: The system is composed of three independent applications: a Central Server, one or more Host Servers, and multiple Clients.
+## 📖 Introduction
 
-User Authentication: Secure user registration and login system.
+**Payamresan** (Persian for *"Messenger"*) is a robust, multi-component messaging application built entirely from scratch using **Java Sockets**.  
+It features a **distributed architecture** designed for scalability, separating coordination, execution, and user interaction into distinct, independent applications.
 
-Dynamic Chat Rooms (Workspaces): Users can create isolated chat environments called "Workspaces".
+This project demonstrates core concepts of **network programming**, **multithreading**, and **system design** in Java, providing a practical example of how a distributed messaging service can be architected.
 
-Real-time One-on-One Messaging: Send and receive text messages in real-time within a workspace.
+---
 
-Chat History & Management:
+## ✨ Features
 
-get-chats: View a list of all conversations and the number of unread messages in each.
+- **Distributed Architecture**  
+  Composed of three independent applications:
+  1. **Central Server**
+  2. **Host Server(s)**
+  3. **Clients**
 
-get-messages: Retrieve the full message history for a specific conversation.
+- **User Authentication**  
+  Secure registration and login system.
 
-Data Persistence: Both the Central Server and Host Servers save their state (users, workspaces, chat history) to JSON files upon graceful shutdown and reload the data on startup.
+- **Dynamic Chat Rooms (Workspaces)**  
+  Users can create isolated chat environments.
 
-Command-Line Interface (CLI): A user-friendly CLI for interacting with the messaging service.
+- **Real-Time One-on-One Messaging**  
+  Instant text communication inside workspaces.
 
-🏗️ System Architecture
-The system's architecture is designed to be scalable. The core logic is divided into three main components:
+- **Chat History & Management**  
+  - `get-chats`: View all conversations and unread counts.  
+  - `get-messages`: Retrieve full conversation history.
 
-1. Central Server
-The "brain" of the entire system. It runs on a fixed port (8000) and acts as the central coordinator.
+- **Data Persistence**  
+  JSON-based state saving for Central & Host Servers on shutdown, auto-loaded on startup.
 
-Responsibilities:
+- **Command-Line Interface (CLI)**  
+  User-friendly terminal-based interface.
 
-Manages user registration and authentication.
+---
 
-Registers and authenticates available Host servers.
+## 🏗️ System Architecture
 
-Allocates new Workspaces to available Hosts.
+The architecture is **modular** and **scalable**. Core components:
 
-Provides clients with the connection details (IP and Port) for specific Workspaces.
+### 1️⃣ Central Server (The Brain)
+- Runs on **port 8000**.
+- Manages **user registration**, **authentication**, and **workspace allocation**.
+- Registers Host Servers and assigns workspaces.
+- Provides workspace connection details to clients.
+- **Does not** handle chat messages directly.
 
-It does NOT handle any chat messages directly.
+### 2️⃣ Host Server (The Workhorse)
+- Multiple instances can run on different machines.
+- Registers itself with the Central Server (port range provided).
+- Manages multiple **isolated workspaces**.
+- Handles:
+  - Message routing
+  - Storage
+  - History retrieval
 
-2. Host Server
-The "workhorse" of the system. Multiple Host applications can run simultaneously on different machines.
+### 3️⃣ Client (The User Interface)
+- CLI app for user interaction.
+- Communicates with Central Server for authentication & workspace info.
+- Connects directly to Host Server for chat.
+- Sends/receives real-time messages.
+- Manages session state.
 
-Responsibilities:
+---
 
-Registers itself with the Central Server upon startup, providing a range of available ports.
+## 🛠️ Tech Stack
 
-Listens for commands from the Central Server.
+- **Language:** Java (JDK 21)  
+- **Build Tool:** Apache Maven  
+- **Networking:** Java Sockets API  
+- **Concurrency:** Java Threads, ExecutorService  
+- **Data Storage:** JSON (Google Gson)  
+- **Logging:** SLF4J + Logback  
+- **Boilerplate Reduction:** Lombok  
 
-Creates and manages multiple, isolated Workspace instances, each running on a dedicated port.
+---
 
-Handles all chat logic within its workspaces: message routing, storage, and history retrieval.
+## 🚀 How to Run
 
-3. Client
-A command-line application that serves as the user's entry point to the system.
+### Prerequisites
+- Java JDK 21+
+- Apache Maven
+- Git
 
-Responsibilities:
+---
 
-Communicates with the Central Server for tasks like registration, login, and getting workspace addresses.
-
-Establishes a persistent connection directly with a Host Server to join a Workspace.
-
-Sends and receives chat messages in real-time.
-
-Manages the user's session state (logged-in status).
-
-🛠️ Tech Stack
-Language: Java (JDK 21)
-
-Build & Dependency Management: Apache Maven
-
-Core Networking: Java Sockets API
-
-Concurrency: Java Threads & ExecutorService
-
-JSON Serialization: Google Gson
-
-Logging: SLF4J + Logback
-
-Boilerplate Reduction: Lombok
-
-🚀 How to Run
-Prerequisites
-Java Development Kit (JDK) 21 or higher
-
-Apache Maven
-
-Git
-
-1. Clone the Repository
-git clone [https://github.com/your-username/payamresan-project.git](https://github.com/your-username/payamresan-project.git)
+### 1. Clone the Repository
+```bash
+git clone https://github.com/your-username/payamresan-project.git
 cd payamresan-project
-
-2. Build the Projects
-Each component is a separate Maven project. Build them all using the following commands from the root directory:
-
-# Build the Central Server
-mvn -f CentralServer/pom.xml clean install
-
-# Build the Host Server
-mvn -f Host/pom.xml clean install
-
-# Build the Client
-mvn -f Client/pom.xml clean install
-
-3. Run the Applications
-The components must be started in the following order. Open a new terminal for each component.
-
-Step 1: Start the Central Server
-
-java -jar CentralServer/target/central-server-1.0.0-SNAPSHOT.jar
-
-You should see a log message indicating it's listening on port 8000.
-
-Step 2: Start the Host Server
-The Host requires 5 command-line arguments: <central_server_ip> <central_server_port> <host_ip> <host_start_port> <host_end_port>
-
-java -jar Host/target/host-app-1.0.0-SNAPSHOT.jar 127.0.0.1 8000 127.0.0.1 9000 9999
-
-You should see logs indicating a successful connection and registration with the Central Server.
-
-Step 3: Start the Client(s)
-You can run multiple instances of the client application to simulate a conversation.t
-
-java -jar Client/target/client-app-
-
-(
